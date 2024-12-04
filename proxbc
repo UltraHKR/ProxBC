@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-# ProxLB
-# ProxLB (re)balances VM workloads across nodes in Proxmox clusters.
-# ProxLB obtains current metrics from all nodes within the cluster for
+# ProxBC
+# ProxBC (re)balances VM workloads across nodes in Proxmox clusters.
+# ProxBC obtains current metrics from all nodes within the cluster for
 # further auto balancing by memory, disk or cpu and rebalances the VMs
 # over all available nodes in a cluster by having an equal resource usage.
 # Copyright (C) 2024 Florian Paul Azim Hoberg @gyptazy <gyptazy@gyptazy.ch>
@@ -41,9 +41,9 @@ import urllib3
 
 
 # Constants
-__appname__        = "ProxLB"
-__version__        = "1.0.5"
-__config_version__ = 3
+__appname__        = "ProxBC"
+__version__        = "0.0.1"
+__config_version__ = 1
 __author__         = "Florian Paul Azim Hoberg <gyptazy@gyptazy.com> @gyptazy"
 __errors__         = False
 
@@ -76,7 +76,7 @@ class SystemdHandler(logging.Handler):
 
 # Functions
 def initialize_logger(log_level, update_log_verbosity=False):
-    """ Initialize ProxLB logging handler. """
+    """ Initialize ProxBC logging handler. """
     info_prefix = 'Info: [logger]:'
 
     root_logger = logging.getLogger()
@@ -89,14 +89,14 @@ def initialize_logger(log_level, update_log_verbosity=False):
         logging.info(f'{info_prefix} Logger verbosity got updated to: {log_level}.')
 
 
-def pre_validations(config_path, proxlb_config=False):
+def pre_validations(config_path, proxbc_config=False):
     """ Run pre-validations as sanity checks. """
     info_prefix = 'Info: [pre-validations]:'
 
-    if proxlb_config:
-        logging.info(f'{info_prefix} Validating ProxLB config file content.')
-        __validate_config_content(proxlb_config)
-        logging.info(f'{info_prefix} ProxLB config file content validation done.')
+    if proxbc_config:
+        logging.info(f'{info_prefix} Validating ProxBC config file content.')
+        __validate_config_content(proxbc_config)
+        logging.info(f'{info_prefix} ProxBC config file content validation done.')
     else:
         logging.info(f'{info_prefix} Validating basic configuration.')
         __validate_imports()
@@ -116,7 +116,7 @@ def post_validations():
 
 
 def validate_daemon(daemon, schedule):
-    """ Validate if ProxLB runs as a daemon. """
+    """ Validate if ProxBC runs as a daemon. """
     info_prefix  = 'Info: [daemon]:'
 
     if bool(int(daemon)):
@@ -151,7 +151,7 @@ def __validate_config_file(config_path):
         logging.info(f'{info_prefix} Configuration file loaded from: {config_path}.')
 
 
-def __validate_config_content(proxlb_config):
+def __validate_config_content(proxbc_config):
     """ Validate the user's config options. """
     error_prefix = 'Error: [config]:'
     info_prefix  = 'Info: [config]:'
@@ -169,10 +169,10 @@ def __validate_config_content(proxlb_config):
     ]
 
     for bool_val in validate_bool_options:
-        if type(proxlb_config.get(bool_val, None)) == bool:
+        if type(proxbc_config.get(bool_val, None)) == bool:
             logging.info(f'{info_prefix} Config option {bool_val} is in a correct format.')
         else:
-            logging.critical(f'{error_prefix} Config option {bool_val} is incorrect: {proxlb_config.get(bool_val, None)}')
+            logging.critical(f'{error_prefix} Config option {bool_val} is incorrect: {proxbc_config.get(bool_val, None)}')
             sys.exit(2)
 
     validate_string_options = [
@@ -194,39 +194,39 @@ def __validate_config_content(proxlb_config):
     }
 
     for string_val in validate_string_options:
-        if proxlb_config[string_val] in whitelist_string_options[string_val]:
+        if proxbc_config[string_val] in whitelist_string_options[string_val]:
             logging.info(f'{info_prefix} Config option {string_val} is in a correct format.')
         else:
-            logging.critical(f'{error_prefix} Config option {string_val} is incorrect: {proxlb_config.get(string_val, None)}')
+            logging.critical(f'{error_prefix} Config option {string_val} is incorrect: {proxbc_config.get(string_val, None)}')
             sys.exit(2)
 
 
 def initialize_args():
-    """ Initialize given arguments for ProxLB. """
-    argparser = argparse.ArgumentParser(description='ProxLB')
+    """ Initialize given arguments for ProxBC. """
+    argparser = argparse.ArgumentParser(description='ProxBC')
     argparser.add_argument('-c', '--config',      help='Path to config file',                                   type=str,            required=False)
     argparser.add_argument('-d', '--dry-run',     help='Perform a dry-run without doing any actions.',          action='store_true', required=False)
     argparser.add_argument('-j', '--json',        help='Return a JSON of the VM movement.',                     action='store_true', required=False)
     argparser.add_argument('-b', '--best-node',   help='Returns the best next node.',                           action='store_true', required=False)
     argparser.add_argument('-m', '--maintenance', help='Sets node to maintenance mode & moves workloads away.', type=str,            required=False)
-    argparser.add_argument('-v', '--version',     help='Returns the current ProxLB version.',                   action='store_true', required=False)
+    argparser.add_argument('-v', '--version',     help='Returns the current ProxBC version.',                   action='store_true', required=False)
     return argparser.parse_args()
 
 
-def proxlb_output_version():
-    """ Print ProxLB version information on CLI. """
+def proxbc_output_version():
+    """ Print ProxBC version information on CLI. """
     print(f'{__appname__} version {__version__}\nRequired config version: >= {__config_version__}')
-    print('ProxLB support: https://github.com/gyptazy/ProxLB\nDeveloper: gyptazy.com')
+    print('ProxBC support: https://github.com/gyptazy/ProxBC\nDeveloper: gyptazy.com')
     sys.exit(0)
 
 
 def initialize_config_path(app_args):
-    """ Initialize path to ProxLB config file. """
+    """ Initialize path to ProxBC config file. """
     info_prefix  = 'Info: [config]:'
 
     config_path = app_args.config
     if app_args.config is None:
-        config_path = '/etc/proxlb/proxlb.conf'
+        config_path = '/etc/proxbc/proxbc.conf'
         logging.info(f'{info_prefix} No config file provided. Falling back to: {config_path}.')
     else:
         logging.info(f'{info_prefix} Using config file: {config_path}.')
@@ -234,47 +234,47 @@ def initialize_config_path(app_args):
 
 
 def initialize_config_options(config_path):
-    """ Read configuration from given config file for ProxLB. """
+    """ Read configuration from given config file for ProxBC. """
     error_prefix  = 'Error: [config]:'
     info_prefix   = 'Info: [config]:'
-    proxlb_config = {}
+    proxbc_config = {}
 
     try:
         config = configparser.ConfigParser()
         config.read(config_path)
         # Proxmox config
-        proxlb_config['proxmox_api_host']            = config['proxmox']['api_host']
-        proxlb_config['proxmox_api_user']            = config['proxmox']['api_user']
-        proxlb_config['proxmox_api_pass']            = config['proxmox']['api_pass']
-        proxlb_config['proxmox_api_ssl_v']           = config['proxmox']['verify_ssl']
-        proxlb_config['proxmox_api_timeout']         = config['proxmox'].get('timeout', 10)
+        proxbc_config['proxmox_api_host']            = config['proxmox']['api_host']
+        proxbc_config['proxmox_api_user']            = config['proxmox']['api_user']
+        proxbc_config['proxmox_api_pass']            = config['proxmox']['api_pass']
+        proxbc_config['proxmox_api_ssl_v']           = config['proxmox']['verify_ssl']
+        proxbc_config['proxmox_api_timeout']         = config['proxmox'].get('timeout', 10)
         # VM Balancing
-        proxlb_config['vm_balancing_enable']         = config['vm_balancing'].get('enable', 1)
-        proxlb_config['vm_balancing_method']         = config['vm_balancing'].get('method', 'memory')
-        proxlb_config['vm_balancing_mode']           = config['vm_balancing'].get('mode', 'used')
-        proxlb_config['vm_balancing_mode_option']    = config['vm_balancing'].get('mode_option', 'bytes')
-        proxlb_config['vm_balancing_type']           = config['vm_balancing'].get('type', 'vm')
-        proxlb_config['vm_balanciness']              = config['vm_balancing'].get('balanciness', 10)
-        proxlb_config['vm_parallel_migrations']      = config['vm_balancing'].get('parallel_migrations', 1)
-        proxlb_config['vm_maintenance_nodes']        = config['vm_balancing'].get('maintenance_nodes', '')
-        proxlb_config['vm_ignore_nodes']             = config['vm_balancing'].get('ignore_nodes', '')
-        proxlb_config['vm_ignore_vms']               = config['vm_balancing'].get('ignore_vms', '')
-        proxlb_config['vm_enforce_affinity_groups']  = config['vm_balancing'].get('enforce_affinity_groups', 1)
+        proxbc_config['vm_balancing_enable']         = config['vm_balancing'].get('enable', 1)
+        proxbc_config['vm_balancing_method']         = config['vm_balancing'].get('method', 'memory')
+        proxbc_config['vm_balancing_mode']           = config['vm_balancing'].get('mode', 'used')
+        proxbc_config['vm_balancing_mode_option']    = config['vm_balancing'].get('mode_option', 'bytes')
+        proxbc_config['vm_balancing_type']           = config['vm_balancing'].get('type', 'vm')
+        proxbc_config['vm_balanciness']              = config['vm_balancing'].get('balanciness', 10)
+        proxbc_config['vm_parallel_migrations']      = config['vm_balancing'].get('parallel_migrations', 1)
+        proxbc_config['vm_maintenance_nodes']        = config['vm_balancing'].get('maintenance_nodes', '')
+        proxbc_config['vm_ignore_nodes']             = config['vm_balancing'].get('ignore_nodes', '')
+        proxbc_config['vm_ignore_vms']               = config['vm_balancing'].get('ignore_vms', '')
+        proxbc_config['vm_enforce_affinity_groups']  = config['vm_balancing'].get('enforce_affinity_groups', 1)
         # Storage Balancing
-        proxlb_config['storage_balancing_enable']    = config['storage_balancing'].get('enable', 0)
-        proxlb_config['storage_balancing_method']    = config['storage_balancing'].get('method', 'disk_space')
-        proxlb_config['storage_balanciness']         = config['storage_balancing'].get('balanciness', 10)
-        proxlb_config['storage_parallel_migrations'] = config['storage_balancing'].get('parallel_migrations', 1)
+        proxbc_config['storage_balancing_enable']    = config['storage_balancing'].get('enable', 0)
+        proxbc_config['storage_balancing_method']    = config['storage_balancing'].get('method', 'disk_space')
+        proxbc_config['storage_balanciness']         = config['storage_balancing'].get('balanciness', 10)
+        proxbc_config['storage_parallel_migrations'] = config['storage_balancing'].get('parallel_migrations', 1)
         # Update Support
-        proxlb_config['update_service']              = config['update_service'].get('enable', 0)
+        proxbc_config['update_service']              = config['update_service'].get('enable', 0)
         # API
-        proxlb_config['api']                         = config['update_service'].get('enable', 0)
+        proxbc_config['api']                         = config['update_service'].get('enable', 0)
         # Service
-        proxlb_config['master_only']                 = config['service'].get('master_only', 0)
-        proxlb_config['daemon']                      = config['service'].get('daemon', 1)
-        proxlb_config['schedule']                    = config['service'].get('schedule', 24)
-        proxlb_config['log_verbosity']               = config['service'].get('log_verbosity', 'CRITICAL')
-        proxlb_config['config_version']              = config['service'].get('config_version', 2)
+        proxbc_config['master_only']                 = config['service'].get('master_only', 0)
+        proxbc_config['daemon']                      = config['service'].get('daemon', 1)
+        proxbc_config['schedule']                    = config['service'].get('schedule', 24)
+        proxbc_config['log_verbosity']               = config['service'].get('log_verbosity', 'CRITICAL')
+        proxbc_config['config_version']              = config['service'].get('config_version', 2)
     except configparser.NoSectionError:
         logging.critical(f'{error_prefix} Could not find the required section.')
         sys.exit(2)
@@ -286,45 +286,45 @@ def initialize_config_options(config_path):
         sys.exit(2)
 
     # Normalize and update bools. Afterwards, validate minimum required config version.
-    proxlb_config = __update_config_parser_bools(proxlb_config)
-    validate_config_minimum_version(proxlb_config)
+    proxbc_config = __update_config_parser_bools(proxbc_config)
+    validate_config_minimum_version(proxbc_config)
     logging.info(f'{info_prefix} Configuration file loaded.')
 
-    return proxlb_config
+    return proxbc_config
 
 
-def __update_config_parser_bools(proxlb_config):
+def __update_config_parser_bools(proxbc_config):
     """ Update bools in config from configparser to real bools """
     info_prefix     = 'Info: [config-bool-converter]:'
     ignore_sections = ['schedule']
 
     # Normalize and update config parser values to bools.
-    for section, option_value in proxlb_config.items():
+    for section, option_value in proxbc_config.items():
 
         if option_value in [1, '1', 'yes', 'Yes', 'true', 'True', 'enable']:
             if section not in ignore_sections:
                 logging.info(f'{info_prefix} Converting {section} to bool: True.')
-                proxlb_config[section] = True
+                proxbc_config[section] = True
 
         if option_value in [0, '0', 'no', 'No', 'false', 'False', 'disable']:
             if section not in ignore_sections:
                 logging.info(f'{info_prefix} Converting {section} to bool: False.')
-                proxlb_config[section] = False
+                proxbc_config[section] = False
 
-    return proxlb_config
+    return proxbc_config
 
 
-def validate_config_minimum_version(proxlb_config):
-    """ Validate the minimum required config file for ProxLB """
+def validate_config_minimum_version(proxbc_config):
+    """ Validate the minimum required config file for ProxBC """
     info_prefix   = 'Info: [config-version-validator]:'
     error_prefix  = 'Error: [config-version-validator]:'
 
-    if int(proxlb_config['config_version']) < __config_version__:
-        logging.error(f'{error_prefix} ProxLB config version {proxlb_config["config_version"]} is too low. Required: {__config_version__}.')
-        print(f'{error_prefix} ProxLB config version {proxlb_config["config_version"]} is too low. Required: {__config_version__}.')
+    if int(proxbc_config['config_version']) < __config_version__:
+        logging.error(f'{error_prefix} ProxBC config version {proxbc_config["config_version"]} is too low. Required: {__config_version__}.')
+        print(f'{error_prefix} ProxBC config version {proxbc_config["config_version"]} is too low. Required: {__config_version__}.')
         sys.exit(1)
     else:
-        logging.info(f'{info_prefix} ProxLB config version {proxlb_config["config_version"]} is fine. Required: {__config_version__}.')
+        logging.info(f'{info_prefix} ProxBC config version {proxbc_config["config_version"]} is fine. Required: {__config_version__}.')
 
 
 def api_connect(proxmox_api_host, proxmox_api_user, proxmox_api_pass, proxmox_api_ssl_v, proxmox_api_timeout):
@@ -556,7 +556,7 @@ def get_vm_statistics(api_object, ignore_vms, balancing_type):
                     # Get the VM tags from API.
                     vm_tags       = __get_vm_tags(api_object, node, vm['vmid'], 'vm')
                     if vm_tags is not None:
-                        group_include, group_exclude, vm_ignore = __get_proxlb_groups(vm_tags)
+                        group_include, group_exclude, vm_ignore = __get_proxbc_groups(vm_tags)
 
                     # Get wildcard match for VMs to ignore if a wildcard pattern was
                     # previously found. Wildcards may slow down the task when using
@@ -621,7 +621,7 @@ def get_vm_statistics(api_object, ignore_vms, balancing_type):
                     # Get the VM tags from API.
                     vm_tags       = __get_vm_tags(api_object, node, vm['vmid'], 'ct')
                     if vm_tags is not None:
-                        group_include, group_exclude, vm_ignore = __get_proxlb_groups(vm_tags)
+                        group_include, group_exclude, vm_ignore = __get_proxbc_groups(vm_tags)
 
                     # Get wildcard match for VMs to ignore if a wildcard pattern was
                     # previously found. Wildcards may slow down the task when using
@@ -791,8 +791,8 @@ def __get_vm_tags(api_object, node, vmid, balancing_type):
     return vm_config.get('tags', None)
 
 
-def __get_proxlb_groups(vm_tags):
-    """ Get ProxLB related include and exclude groups. """
+def __get_proxbc_groups(vm_tags):
+    """ Get ProxBC related include and exclude groups. """
     info_prefix   = 'Info: [api-get-vm-include-exclude-tags]:'
     group_include = None
     group_exclude = None
@@ -802,23 +802,23 @@ def __get_proxlb_groups(vm_tags):
     for group in group_list:
 
         if group.startswith('plb_include_'):
-            logging.info(f'{info_prefix} Got PLB include group.')
+            logging.info(f'{info_prefix} Got PBC include group.')
             group_include = group
 
         if group.startswith('plb_affinity_'):
-            logging.info(f'{info_prefix} Got PLB include group.')
+            logging.info(f'{info_prefix} Got PBC include group.')
             group_include = group
 
         if group.startswith('plb_exclude_'):
-            logging.info(f'{info_prefix} Got PLB exclude group.')
+            logging.info(f'{info_prefix} Got PBC exclude group.')
             group_exclude = group
 
         if group.startswith('plb_antiaffinity_'):
-            logging.info(f'{info_prefix} Got PLB exclude group.')
+            logging.info(f'{info_prefix} Got PBC exclude group.')
             group_exclude = group
 
         if group.startswith('plb_ignore_vm'):
-            logging.info(f'{info_prefix} Got PLB ignore group.')
+            logging.info(f'{info_prefix} Got PBC ignore group.')
             vm_ignore = True
 
     return group_include, group_exclude, vm_ignore
@@ -853,7 +853,7 @@ def balancing_vm_calculations(balancing_method, balancing_mode, balancing_mode_o
         balancing_vm_calculations(balancing_method, balancing_mode, balancing_mode_option, node_statistics, vm_statistics, balanciness, app_args, rebalance, processed_vms)
 
     # If only best node argument set we simply return the next best node for VM
-    # and CT placement on the CLI and stop ProxLB.
+    # and CT placement on the CLI and stop ProxBC.
     if app_args.best_node:
         logging.info(f'{info_prefix} Only best next node for new VM & CT placement requsted.')
         best_next_node = __get_most_free_resources_node(balancing_method, balancing_mode, balancing_mode_option, node_statistics)
@@ -865,14 +865,14 @@ def balancing_vm_calculations(balancing_method, balancing_mode, balancing_mode_o
     return node_statistics, vm_statistics
 
 
-def balancing_vm_maintenance(proxlb_config, app_args, node_statistics, vm_statistics):
+def balancing_vm_maintenance(proxbc_config, app_args, node_statistics, vm_statistics):
     """ Calculate re-balancing of VMs that need to be moved away from maintenance nodes. """
     info_prefix            = 'Info: [rebalancing-maintenance-vm-calculator]:'
-    maintenance_nodes_list = proxlb_config['vm_maintenance_nodes'].split(',')
+    maintenance_nodes_list = proxbc_config['vm_maintenance_nodes'].split(',')
     nodes_present          = list(node_statistics.keys())
-    balancing_method       = proxlb_config['vm_balancing_method']
-    balancing_mode         = proxlb_config['vm_balancing_mode']
-    balancing_mode_option  = proxlb_config['vm_balancing_mode_option']
+    balancing_method       = proxbc_config['vm_balancing_method']
+    balancing_mode         = proxbc_config['vm_balancing_mode']
+    balancing_mode_option  = proxbc_config['vm_balancing_mode_option']
 
     # Merge maintenance nodes from config and cli args.
     if app_args.maintenance is not None:
@@ -1510,7 +1510,7 @@ def balancing_vm_affinity_groups(node_statistics, vm_statistics, balancing_metho
 
 
 def main():
-    """ Run ProxLB for balancing VM workloads across a Proxmox cluster. """
+    """ Run ProxBC for balancing VM workloads across a Proxmox cluster. """
     vm_output_statistics      = {}
     storage_output_statistics = {}
 
@@ -1518,61 +1518,61 @@ def main():
     initialize_logger('CRITICAL')
     app_args = initialize_args()
     if app_args.version:
-        proxlb_output_version()
+        proxbc_output_version()
     config_path = initialize_config_path(app_args)
     pre_validations(config_path)
 
     # Parse global config.
-    proxlb_config = initialize_config_options(config_path)
-    pre_validations(config_path, proxlb_config)
+    proxbc_config = initialize_config_options(config_path)
+    pre_validations(config_path, proxbc_config)
 
     # Overwrite logging handler with user defined log verbosity.
-    initialize_logger(proxlb_config['log_verbosity'], update_log_verbosity=True)
+    initialize_logger(proxbc_config['log_verbosity'], update_log_verbosity=True)
 
     while True:
         # API Authentication.
-        api_object = api_connect(proxlb_config['proxmox_api_host'], proxlb_config['proxmox_api_user'], proxlb_config['proxmox_api_pass'], proxlb_config['proxmox_api_ssl_v'], proxlb_config['proxmox_api_timeout'])
+        api_object = api_connect(proxbc_config['proxmox_api_host'], proxbc_config['proxmox_api_user'], proxbc_config['proxmox_api_pass'], proxbc_config['proxmox_api_ssl_v'], proxbc_config['proxmox_api_timeout'])
 
-        # Get master node of cluster and ensure that ProxLB is only performed on the
+        # Get master node of cluster and ensure that ProxBC is only performed on the
         # cluster master node to avoid ongoing rebalancing.
-        cluster_master, master_only = execute_rebalancing_only_by_master(api_object, proxlb_config['master_only'])
+        cluster_master, master_only = execute_rebalancing_only_by_master(api_object, proxbc_config['master_only'])
 
         # Validate daemon service and skip following tasks when not being the cluster master.
         if not cluster_master and master_only:
-            validate_daemon(proxlb_config['daemon'], proxlb_config['schedule'])
+            validate_daemon(proxbc_config['daemon'], proxbc_config['schedule'])
             continue
 
         # Get metrics & statistics for vms and nodes.
-        if proxlb_config['vm_balancing_enable'] or proxlb_config['storage_balancing_enable'] or app_args.best_node:
-            node_statistics    = get_node_statistics(api_object, proxlb_config['vm_ignore_nodes'], proxlb_config['vm_maintenance_nodes'])
-            vm_statistics      = get_vm_statistics(api_object, proxlb_config['vm_ignore_vms'], proxlb_config['vm_balancing_type'])
+        if proxbc_config['vm_balancing_enable'] or proxbc_config['storage_balancing_enable'] or app_args.best_node:
+            node_statistics    = get_node_statistics(api_object, proxbc_config['vm_ignore_nodes'], proxbc_config['vm_maintenance_nodes'])
+            vm_statistics      = get_vm_statistics(api_object, proxbc_config['vm_ignore_vms'], proxbc_config['vm_balancing_type'])
             node_statistics    = update_node_statistics(node_statistics, vm_statistics)
             # Obtaining metrics for the storage may take longer times and is not needed for VM/CT balancing.
             # We can save time by skipping this when not really needed.
-            if proxlb_config['storage_balancing_enable']:
+            if proxbc_config['storage_balancing_enable']:
                 storage_statistics = get_storage_statistics(api_object)
 
         # Execute VM/CT balancing sub-routines.
-        if proxlb_config['vm_balancing_enable'] or app_args.best_node:
-            node_statistics, vm_statistics = balancing_vm_calculations(proxlb_config['vm_balancing_method'], proxlb_config['vm_balancing_mode'], proxlb_config['vm_balancing_mode_option'], node_statistics, vm_statistics, proxlb_config['vm_balanciness'], app_args, rebalance=False, processed_vms=[])
-            node_statistics, vm_statistics = balancing_vm_maintenance(proxlb_config, app_args, node_statistics, vm_statistics)
-            node_statistics, vm_statistics = balancing_vm_affinity_groups(node_statistics, vm_statistics, proxlb_config['vm_balancing_method'], proxlb_config['vm_balancing_mode'],)
-            vm_output_statistics = run_rebalancing(api_object, vm_statistics, app_args, proxlb_config['vm_parallel_migrations'], 'vm')
+        if proxbc_config['vm_balancing_enable'] or app_args.best_node:
+            node_statistics, vm_statistics = balancing_vm_calculations(proxbc_config['vm_balancing_method'], proxbc_config['vm_balancing_mode'], proxbc_config['vm_balancing_mode_option'], node_statistics, vm_statistics, proxbc_config['vm_balanciness'], app_args, rebalance=False, processed_vms=[])
+            node_statistics, vm_statistics = balancing_vm_maintenance(proxbc_config, app_args, node_statistics, vm_statistics)
+            node_statistics, vm_statistics = balancing_vm_affinity_groups(node_statistics, vm_statistics, proxbc_config['vm_balancing_method'], proxbc_config['vm_balancing_mode'],)
+            vm_output_statistics = run_rebalancing(api_object, vm_statistics, app_args, proxbc_config['vm_parallel_migrations'], 'vm')
 
         # Execute storage balancing sub-routines.
-        if proxlb_config['storage_balancing_enable']:
-            storage_statistics, vm_statistics = balancing_storage_calculations(proxlb_config['storage_balancing_method'], storage_statistics, vm_statistics, proxlb_config['storage_balanciness'], rebalance=False, processed_vms=[])
-            storage_output_statistics = run_rebalancing(api_object, vm_statistics, app_args, proxlb_config['storage_parallel_migrations'], 'storage')
+        if proxbc_config['storage_balancing_enable']:
+            storage_statistics, vm_statistics = balancing_storage_calculations(proxbc_config['storage_balancing_method'], storage_statistics, vm_statistics, proxbc_config['storage_balanciness'], rebalance=False, processed_vms=[])
+            storage_output_statistics = run_rebalancing(api_object, vm_statistics, app_args, proxbc_config['storage_parallel_migrations'], 'storage')
 
         # Generate balancing output
-        if proxlb_config['vm_balancing_enable'] or proxlb_config['storage_balancing_enable']:
+        if proxbc_config['vm_balancing_enable'] or proxbc_config['storage_balancing_enable']:
             run_output_rebalancing(app_args, vm_output_statistics, storage_output_statistics)
 
         # Validate for any errors.
         post_validations()
 
         # Validate daemon service.
-        validate_daemon(proxlb_config['daemon'], proxlb_config['schedule'])
+        validate_daemon(proxbc_config['daemon'], proxbc_config['schedule'])
 
 
 if __name__ == '__main__':
